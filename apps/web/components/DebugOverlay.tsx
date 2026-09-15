@@ -20,8 +20,8 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
   const asrFlushMs = Math.max(0.1, timing.tAsrDone - timing.tSpeechEnd);
   const queryBuildMs = Math.max(0.1, timing.tQueryBuilt - timing.tAsrDone);
   const embedMs = Math.max(0.1, timing.tEmbedDone - timing.tQueryBuilt);
-  const mossMs = timing.mossMs;
-  const rankMs = Math.max(0.1, timing.tRanked - timing.tMossDone);
+  const vectorSearchMs = timing.vectorSearchMs;
+  const rankMs = Math.max(0.1, timing.tRanked - timing.tSearchDone);
   const paintMs = Math.max(0.1, timing.tPaint - timing.tRanked);
   const totalFromSpeechEnd = timing.totalFromSpeechEnd;
 
@@ -98,8 +98,8 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
             <td style={{ textAlign: "right", color: "#8b949e" }}>&lt; 60 ms</td>
           </tr>
           <tr style={{ backgroundColor: "rgba(35, 134, 54, 0.18)", fontWeight: 700, color: "#3fb950" }}>
-            <td style={{ padding: "4px 2px" }}>Moss Retrieval (in-tab)</td>
-            <td style={{ textAlign: "right" }}>{mossMs.toFixed(2)} ms</td>
+            <td style={{ padding: "4px 2px" }}>Vector search (flat, in-tab)</td>
+            <td style={{ textAlign: "right" }}>{vectorSearchMs.toFixed(2)} ms</td>
             <td style={{ textAlign: "right" }}>&lt; 10.0 ms</td>
           </tr>
           <tr>

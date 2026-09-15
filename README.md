@@ -1,12 +1,22 @@
 # KRONOS
 
 **Local-first recall copilot for high-stakes contract negotiation.**
-Speech → clause, in the browser tab, with no network egress and no vector database.
+Speech → clause, in the browser tab, with no network egress after load.
 
 Built for **YC Fall 2026 × Moss: The Zero Latency Builder Sprint**
 Themes: *Local-First AI & The Small Cloud* (primary) · *Real-Time Voice* · *Agent Reliability*
 
-> **Status:** Implementation & evaluation complete. All numbers below marked **`[MEASURED]`** were produced by `pnpm eval` on an Intel Xeon / Linux x86_64 workstation (24 cores, Node v24.18.0) across the 50-item legal assertion set (`eval/results/RESULTS.md`).
+---
+
+> [!IMPORTANT]
+> **KRONOS does not currently use Moss.** Retrieval runs on an exact flat
+> in-memory index implemented in this repository. No Moss vector-search SDK was
+> resolvable from public package registries at build time, and SDK access has not
+> been obtained. The integration seam is written and isolated to one file
+> ([`moss-adapter.ts`](packages/retrieval/src/moss-adapter.ts)); requesting the
+> Moss backend today throws rather than silently falling back. This is the
+> project's most significant open gap and is tracked in
+> [Known limitations](#known-limitations).
 
 ---
 
@@ -16,288 +26,245 @@ In a negotiation, someone makes a claim about the agreement:
 
 > *"Your Q3 churn violates the minimums in the term sheet."*
 
-You have read that document. You know there is a carve-out. Finding it takes forty seconds of
-scrolling, and scrolling in front of the other side tells them you're not sure.
+You have read that document. You know there is a carve-out. Finding it takes
+forty seconds of scrolling, and scrolling in front of the other side tells them
+you're not sure.
 
-KRONOS listens to your own meeting, recognises the end of the sentence, and puts the governing
-clauses on a heads-up panel — quoted verbatim from **your** documents, tagged with whether each
-one helps you or hurts you:
+KRONOS listens to your own meeting, detects the end of the utterance, and puts
+the governing clauses on a heads-up panel — quoted verbatim from **your**
+documents, tagged with whether each one helps you or hurts you:
 
 ```
-┌─ SUPPORTS YOU ──────────────────── Term_Sheet_v4.pdf · §4.2.1(b) ─┐
+┌─ SUPPORTS YOU ──────────────────── Term_Sheet_v4.md · §4.2.1(b) ──┐
 │ "Notwithstanding §4.2, Q3 churn shall be exempt from the minimum  │
 │  thresholds provided that annual revenue exceeds $50,000,000."    │
-└───────────────────────────────── conf 0.89 · 144 ms · Moss 0.4 ms ┘
+└───────────────────────────── conf 0.89 · 187 ms · search 0.1 ms ──┘
 
-┌─ CUTS AGAINST YOU ──────────────── Term_Sheet_v4.pdf · §4.2 ──────┐
+┌─ CUTS AGAINST YOU ──────────────── Term_Sheet_v4.md · §4.2 ───────┐
 │ "Quarterly churn shall not exceed 4.0% of ending ARR."            │
-└───────────────────────────────── conf 0.81 ─────────────────────── ┘
+└───────────────────────────────────────────── conf 0.81 ───────────┘
 ```
 
-Every stage — voice detection, speech recognition, embedding, retrieval — runs inside the tab.
-**After the page loads, KRONOS makes no network requests.**
+Voice detection, speech recognition, embedding, and retrieval all run inside the
+tab. After the page and model weights load, KRONOS makes no network requests —
+and the debug overlay counts them so you can verify that rather than believe it.
 
 ---
 
-## Why this needs Moss
+## Quick start
 
-Moss is not a checkbox here; remove it and the product does not exist.
-
-The entire value proposition is *"deal documents never leave the machine."* That forces
-retrieval into the browser, which rules out a hosted vector database — the moment you call
-Pinecone or Weaviate, you have shipped the client's confidential corpus to a third party and
-the CISO conversation is over.
-
-So the requirement is: **semantic search over a contract corpus, in-tab, with no server,
-fast enough to be invisible inside a conversational turn.** Moss's sub-10ms in-memory
-retrieval is what makes the no-egress guarantee compatible with sub-second response. It is the
-component that turns a compliance constraint into a latency advantage instead of a tax.
-
-Retrieval is also the one stage with **zero** slack in the budget. ASR is hundreds of
-milliseconds and embedding is tens. If retrieval cost 200–400ms — a normal round trip to a
-hosted index — the perceived pause crosses the threshold where a human notices you waiting on
-a machine, and the product stops working *socially* even though it still works technically.
-
----
-
-## Architecture
-
-```mermaid
-flowchart TB
-    subgraph offline["Pre-session · offline"]
-        A["PDF / DOCX"] --> B["Layout-aware parse"]
-        B --> C["Legal-boundary chunking<br/>clause numbers, headings, defined terms"]
-        C --> D["all-MiniLM-L6-v2<br/>384-dim embeddings"]
-        D --> E["Moss index artifact"]
-    end
-
-    subgraph tab["Browser tab · no network egress after load"]
-        E -.->|"loaded once at startup"| F["Moss index in memory"]
-        M["Microphone"] --> V["VAD ring buffer"]
-        V -->|"streaming"| W["Whisper-tiny (WASM)"]
-        V -->|"t_speech_end"| Q
-        W --> Q["Query expansion<br/>obligation · exception · definition · remedy"]
-        Q --> X["Batch embed (MiniLM)"]
-        X --> F
-        F -->|"top-k per expansion"| R["Reciprocal Rank Fusion"]
-        R --> S["Stance labelling<br/>+ confidence gate"]
-        S --> H["HUD · green / amber / red"]
-    end
-
-    style F fill:#1f6f43,color:#fff
-    style tab fill:#0d1117,color:#c9d1d9
+```bash
+pnpm install
+pnpm bootstrap  # downloads model weights (~64 MB) + reference audio, builds the index
+pnpm dev        # http://localhost:3000
 ```
 
-**Measured interval:** `t_paint − t_speech_end` — from the moment voice-activity detection
-declares the sentence finished, to the moment the clause is painted.
+`pnpm bootstrap` is required on a fresh clone: the ONNX weights are not committed to
+git. It is the only step that touches the network.
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Session HUD at `/`, chunk inspector at `/inspect`, telemetry via `?debug=1` |
+| `pnpm ingest <file> -o <out.moss>` | Parse → chunk → embed → emit index artifact |
+| `pnpm test` | Full suite against the real models (~6 s) |
+| `pnpm eval` | Retrieval + latency benchmark → `eval/results/RESULTS.md` |
+| `pnpm typecheck && pnpm build` | Type check and production build |
 
 ---
 
-## Performance (`[MEASURED]`)
+## What is actually running
 
-Hardware: `Intel Xeon / Linux x86_64 Workstation (24 cores, Node v24.18.0)` · Dataset: 50 runs (`eval/results/RESULTS.md`)
+Stated explicitly, because an earlier revision of this project shipped
+simulations under the names of real components.
 
-| Stage | p50 (`[MEASURED]`) | p95 (`[MEASURED]`) | Budget Target |
-|---|---|---|---|
-| ASR final flush (tail only) | `[MEASURED]` **112.4 ms** | `[MEASURED]` **198.0 ms** | < 300 ms |
-| Query build + 4-way template expansion | `[MEASURED]` **0.80 ms** | `[MEASURED]` **1.40 ms** | < 15 ms |
-| Embed (4 expansions, batched, 384-dim) | `[MEASURED]` **4.20 ms** | `[MEASURED]` **6.10 ms** | < 60 ms |
-| **Moss in-memory retrieval** | `[MEASURED]` **0.40 ms** | `[MEASURED]` **1.22 ms** | **< 10 ms** |
-| Rerank + RRF + bidirectional xrefs + stance | `[MEASURED]` **1.80 ms** | `[MEASURED]` **3.20 ms** | < 25 ms |
-| Render → DOM paint (rAF) | `[MEASURED]` **24.5 ms** | `[MEASURED]` **42.0 ms** | < 60 ms |
-| **End-of-utterance → painted (`t_paint − t_speech_end`)** | `[MEASURED]` **144.1 ms** | `[MEASURED]` **144.9 ms** | **< 350 ms p50** |
-
-### Retrieval Recall vs. Naive Baseline (`[MEASURED]`)
-
-| Dataset Subset | KRONOS Recall@3 | Naive Baseline Recall@3 | Lift |
-|---|---|---|---|
-| **Overall Set (50 assertions)** | `[MEASURED]` **98.0%** | `[MEASURED]` **60.0%** | **+38.0 pts** |
-| **Adversarial Subset (15 assertions)** | `[MEASURED]` **93.3%** | `[MEASURED]` **13.3%** | **+80.0 pts** |
-| **False-Confident Rate** | `[MEASURED]` **0.0%** | — | Target ≤ 5.0% |
-
-**Cold start** (model download + index hydration) is measured in **seconds, not milliseconds**,
-and is disclosed separately rather than hidden. See [SPEC.md](./SPEC.md) §12.
-
-### On the number we are not claiming
-
-An earlier draft of this project advertised "~450ms end-to-end" while also specifying a
-4–6 second audio capture window. Those cannot both be true — measured from the moment the
-other person starts talking, that design takes five seconds or more, because the capture
-window dominates every other term.
-
-KRONOS streams transcription during speech instead of buffering, and reports the interval a
-user actually experiences as waiting: **end of utterance → clause on screen**, as p50 and p95,
-on named hardware. The timer shown in the demo video measures that interval and says so
-on screen.
-
----
-
-## Retrieval quality
-
-Naive semantic search fails this problem in a specific and demo-killing way. Embedding the
-assertion *"your churn violates the minimums"* and taking nearest neighbours returns clauses
-**about churn minimums** — with the obligation clause being used against you as the likely top
-hit, and the carve-out that saves you buried below it. Similarity to a claim does not retrieve
-that claim's rebuttal.
-
-KRONOS expands each assertion into several hypothetical clause forms (obligation, exception,
-definition, remedy), embeds them as a batch, retrieves top-k for each from Moss, fuses with
-Reciprocal Rank Fusion, then labels each surviving candidate's stance using legal structural
-cues (`notwithstanding`, `except`, `provided that`, `shall not apply`) and cross-reference
-resolution.
-
-Showing the clause that *hurts* you, clearly labelled, is deliberate. Getting ambushed by §4.2
-is worse than seeing it coming.
-
-Full design in [SPEC.md](./SPEC.md) §7.
-
----
-
-## Reliability
-
-Whisper-tiny on poor far-field audio does not fail quietly — it **fabricates fluent
-sentences**. That is the real risk to a "zero hallucinations" claim, and it lives at the input
-layer, before retrieval ever runs.
-
-KRONOS combines ASR confidence, input SNR, and the Moss rank-1/rank-2 similarity margin into a
-single gate with three states:
-
-| State | Meaning | Behaviour |
+| Component | Status | What it is |
 |---|---|---|
-| 🟢 **Green** | Confident match | Clause card with stance label and verbatim text |
-| 🟠 **Amber** | Weak match or narrow margin | "No confident match — closest §X.Y," collapsed, with the recognised text shown |
-| 🔴 **Red** | ASR below floor / no speech | "Didn't catch that." Retrieval is not attempted |
-
-The recognised transcript is always visible in small type, so you can instantly tell
-*"it misheard me"* apart from *"my documents don't cover this."*
-
-Thresholds are calibrated on the eval set and committed with the run that produced them —
-not hand-tuned to make a demo look good.
+| Embeddings | **Real** | `all-MiniLM-L6-v2`, int8 ONNX, via transformers.js |
+| Speech recognition | **Real** | `whisper-tiny.en`, int8 ONNX, decoding real PCM |
+| Microphone | **Real** | `getUserMedia` + `AudioWorklet` at 16 kHz |
+| Voice activity detection | **Real** | Energy/noise-floor heuristic (not a neural VAD) |
+| Chunking, RRF, stance, gate | **Real** | Plain deterministic code |
+| Vector search | **Real, but not Moss** | Exact flat scan over 32 clauses |
+| Moss SDK | **Not wired** | Stub throws; see `moss-adapter.ts` |
 
 ---
 
-## Privacy: the precise claim
+## Results
 
-**What is true:**
+All figures below are produced by `pnpm eval` and written to
+[`eval/results/RESULTS.md`](eval/results/RESULTS.md). Measured on an Intel Xeon
+workstation (24 cores, Node v24), 50 labelled assertions over a 32-clause term
+sheet, 15 of them adversarial.
 
-- No network requests after initial asset load. Shown unedited in the DevTools network panel.
-- No writes to `localStorage`, `sessionStorage`, `IndexedDB`, the Cache API, or disk.
-  Enforced by an automated test.
-- Audio lives in a rolling ring buffer and is discarded after transcription. There is no
-  recording feature and there will not be one.
-- Closing the tab releases everything.
+Nothing here is floored, clamped, or substituted with a constant. Where a number
+could not be measured, it says so.
 
-**What is not true, and which we will not claim:**
+### Retrieval quality
 
-- WebAssembly linear memory is **not** a security enclave. It is an ordinary `ArrayBuffer`,
-  readable from the console and from DevTools memory snapshots. It is not attested and does
-  not defend against a malicious extension, a compromised browser, or physical access to an
-  unlocked machine.
-- "Data evaporates instantly on tab close" is a nice sentence and not a guarantee anyone can
-  make about process memory. We don't make it.
+| Metric | KRONOS | Naive single-query baseline | Lift |
+|---|---|---|---|
+| Recall@1 | 76.0% | 78.0% | **−2.0 pts** |
+| Recall@3 | 94.0% | 94.0% | **0.0 pts** |
+| MRR | 0.847 | 0.857 | **−0.010** |
 
-WebAuthn-derived keys and AES-256-GCM encrypted provisioning are **roadmap, not built.**
-See [PRD.md](./PRD.md) §9.
+### Adversarial subset (n=15) — the carve-out cases
+
+| Metric | KRONOS | Naive baseline | Lift |
+|---|---|---|---|
+| Recall@1 | **60.0%** | 33.3% | **+26.7 pts** |
+| Recall@3 | **93.3%** | 80.0% | **+13.3 pts** |
+
+**Read this honestly:** multi-query expansion buys nothing on general recall — a
+single real MiniLM embedding of the raw sentence already reaches 94% on a corpus
+this size, and on rank-1 ordering the expansion is very slightly *worse*. The
+entire benefit is concentrated in the adversarial cases, where the useful clause
+is a carve-out that rebuts the assertion rather than the obligation the assertion
+restates. There it is worth +26.7 points at rank 1.
+
+That is a real tradeoff, and it happens to be the one the product is about. It is
+also much smaller than it would look if the baseline were weaker.
+
+### Latency
+
+| Stage | p50 | p95 | Status |
+|---|---|---|---|
+| Vector search (flat exact, 32 clauses) | **0.10 ms** | 0.27 ms | well inside 10 ms |
+| MiniLM embedding (4 expansions) | 41.3 ms | 52.9 ms | — |
+| RRF + cross-refs + stance | ~0.5 ms | ~1 ms | — |
+| **Text in → ranked clauses out** | **43.0 ms** | 54.2 ms | — |
+| Whisper decode (5 s utterance) | **~690 ms** | — | **over budget** |
+| Browser paint | *not measured* | — | requires `?debug=1` in-browser |
+
+> [!WARNING]
+> **Whisper decode does not fit the latency budget.** Measured decode is roughly
+> 650–715 ms and is nearly flat across 2 s, 3 s, and 5 s utterances, because
+> Whisper pads every input to a fixed 30-second mel window — so the cost is
+> essentially constant per utterance rather than proportional to its length. The
+> target for end-of-utterance → painted clause is 350 ms p50. A single decode
+> starting at `t_speech_end` cannot meet it.
+>
+> KRONOS mitigates this by running trailing partial decodes *during* speech and
+> firing retrieval on the provisional transcript at `t_speech_end`, with the
+> authoritative decode correcting afterwards if it differs
+> ([`session.ts`](packages/audio/src/session.ts)). That shifts the cost off the
+> critical path; it does not eliminate it. The honest cost is that the first
+> paint can be based on a slightly truncated sentence.
+
+### Confidence gate
+
+| Metric | Value | Target |
+|---|---|---|
+| Green verdicts | 47 / 50 | — |
+| False-confident rate | **4.26%** | ≤ 5% |
+
+A false-confident — showing green while the governing clause was not retrieved —
+is the only failure that actively harms the user. An amber sends them to the
+document, which is what they would have done anyway; a confident wrong clause
+invites them to argue from it.
+
+> [!NOTE]
+> The gate threshold was calibrated on this same 50-item set, so 4.26% is an
+> **in-sample** figure and is optimistic. `RESULTS.md` publishes the full
+> threshold sweep so the operating point can be argued with.
 
 ---
 
-## Consent and intended use
+## How it works
 
-KRONOS is a copilot for **your own side**, retrieving from **documents you already own**, in a
-meeting you are **a party to**.
+```
+microphone → AudioWorklet → ring buffer (30 s, in-memory only)
+                 ↓
+            energy VAD → utterance boundaries
+                 ↓
+         whisper-tiny.en → transcript
+                 ↓
+      assertion parser → 4 hypothetical clause forms
+                 ↓
+         all-MiniLM-L6-v2 → 4 × 384-dim vectors
+                 ↓
+        flat exact index → top-10 per expansion
+                 ↓
+    reciprocal rank fusion → cross-reference resolution → stance
+                 ↓
+         confidence gate → green / amber / red
+```
 
-- The listener is never hidden: a persistent microphone indicator is always visible while armed.
-- Nothing is recorded, stored, or retained.
-- Recording and disclosure law varies by jurisdiction, and several US states require the
-  consent of **all** parties. Complying with the law that applies to your meeting is your
-  responsibility.
+### The idea that does the work
 
-The discreet trigger exists so you don't have to **look down**, not so anyone is kept in the
-dark. An earlier draft of this project used adversarial framing ("stealth," "the opponent never
-knows"); that framing was wrong, was a legal liability, and has been removed. The UX insight
-survives intact — see [PRD.md](./PRD.md) §2.
+A spoken accusation and the clause that governs it are written in completely
+different registers. Nobody says *"notwithstanding the foregoing"*; they say
+*"your churn blows the minimums."* Embedding the spoken sentence and searching
+directly compares conversational English against legal prose.
+
+So instead, for each of four legal functions — obligation, exception, definition,
+remedy — KRONOS writes the clause it would expect to exist if the assertion were
+true, and searches with that. The exception form is weighted highest, because the
+carve-out is the clause you cannot find by scrolling and the obligation is the one
+the other side already quoted at you.
+
+Cross-reference resolution then runs in **both** directions: forward to clauses a
+retrieved clause cites, and backward to clauses that cite *it* and carry exception
+language. The §4.2.1(b) carve-out is found largely because it points at §4.2.
+
+---
+
+## Privacy
+
+| Guarantee | How it is enforced |
+|---|---|
+| No document ever leaves the machine | CSP `connect-src 'self'` — no third-party origin is reachable |
+| No audio is persisted | Fixed 30-second ring buffer, overwritten continuously, dropped on stop |
+| Microphone state is always visible | Capture only occurs through `MicrophoneCapture`, which drives the indicator |
+| Weights are local | `allowRemoteModels = false`; missing weights throw rather than fetching |
+| Claim is verifiable | `PerformanceObserver` counts post-load requests in the debug overlay |
+
+`connect-src 'self'` also blocks huggingface.co, which is why weights must be
+vendored by `pnpm fetch-models` rather than pulled at runtime.
+
+---
+
+## Known limitations
+
+1. **No Moss.** The single largest gap. Retrieval is a flat exact scan written
+   here. The adapter seam exists and is one file.
+2. **Whisper decode (~690 ms) exceeds the 350 ms paint budget.** Mitigated by
+   provisional-transcript retrieval, not solved.
+3. **Query expansion does not improve general recall** on this corpus, and
+   marginally hurts rank-1 ordering. Its value is confined to adversarial
+   carve-out cases.
+4. **Single corpus.** All 50 assertions are scored against one 32-clause term
+   sheet. Recall over 32 clauses is a far easier problem than over 3,000; these
+   numbers should not be read as generalising to large document sets.
+5. **Gate threshold calibrated in-sample.** n=50 is too small to hold out a
+   meaningful validation fold.
+6. **English-only ASR**, and far-field / accented accuracy is untested. This is
+   the largest unquantified product risk: the demo environment is a quiet room
+   with a close microphone, and a real negotiation is neither.
+7. **Retrieval runs on the main thread.** SPEC calls for a worker; embedding at
+   ~41 ms will briefly block interaction.
+8. **Energy-based VAD**, not Silero — more susceptible to non-speech transients
+   like keyboard noise and papers.
+9. **Browser paint time is unmeasured** in the automated harness.
 
 ---
 
 ## Repository layout
 
 ```
-kronos/
-├── README.md              # this file
-├── PRD.md                 # product requirements, scope, risks, plan
-├── SPEC.md                # exhaustive technical specification
-├── CHANGELOG.md           # timestamped log of every change
-├── apps/web/              # Next.js app — the session HUD
-├── packages/ingest/       # parse → legal-boundary chunk → embed → index
-├── packages/retrieval/    # query expansion, Moss adapter, RRF, stance labelling
-├── packages/audio/        # VAD, ring buffer, Whisper WASM worker
-├── eval/                  # eval harness, labelled assertion set, charts
-└── docs/                  # architecture diagram, judge Q&A prep
+packages/core        types, config constants, generated model fingerprints
+packages/ingest      parsing, legal-boundary chunking, index building
+packages/retrieval   embedder, index, expansion, fusion, stance, gate, moss seam
+packages/audio       ring buffer, VAD, Whisper ASR, microphone, session, WAV
+apps/web             Next.js HUD, chunk inspector, debug overlay
+eval                 50 labelled assertions + benchmark harness
+scripts              model and audio vendoring
 ```
 
 ---
 
-## Getting started
+## Provenance of these numbers
 
-> Not yet implemented — these are the intended entry points, recorded here so the interface is
-> fixed before the code is written.
-
-```bash
-pnpm install
-
-# Ingest a contract into a Moss index artifact
-pnpm ingest --in ./samples/term_sheet.pdf --out ./public/index/term_sheet.moss
-
-# Verify the chunker did not mangle anything (do this before every demo)
-pnpm dev  # then open /inspect
-
-# Run the session HUD
-pnpm dev  # then open /            (add ?debug=1 for the per-stage timing overlay)
-
-# Reproduce the performance and recall numbers
-pnpm eval
-```
-
----
-
-## Evaluation
-
-`pnpm eval` runs 50 labelled assertion → clause pairs, including a **15-item adversarial
-subset** chosen specifically because naive single-query similarity retrieves the wrong clause
-on them, and reports:
-
-- recall@1 / @3 / @5 and MRR, for KRONOS and for the naive baseline, on the same data
-- end-of-utterance → paint latency, p50 / p95, with hardware named
-- per-stage timing breakdown, including Moss in isolation
-- false-confident rate — how often the green state appears while rank-1 is wrong
-- ASR word error rate on the assertion set
-
-Results and charts land in `eval/results/` and are committed with the hardware they came from.
-
----
-
-## Scope: built vs. roadmap
-
-**Built for this submission:** legal-boundary chunking · in-browser streaming ASR · in-browser
-embedding · Moss retrieval with query expansion and rank fusion · stance labelling ·
-confidence gating · zero-egress session · eval harness · demo mode.
-
-**Roadmap, deliberately not built:** WebAuthn + AES-256-GCM enterprise provisioning · OPFS
-encrypted caching · speaker diarisation · OCR for scanned documents · cross-encoder reranking ·
-native desktop shell · multi-document conflict detection.
-
-Five days is five days. The cut list and the reasoning behind each cut are in
-[PRD.md](./PRD.md) §12.
-
----
-
-## Documents
-
-| Document | Contents |
-|---|---|
-| [PRD.md](./PRD.md) | Problem, users, consent posture, latency budget, requirements, risks, plan |
-| [SPEC.md](./SPEC.md) | Every implementation detail: parameters, schemas, algorithms, tests, judge Q&A |
-| [BUILD_PLAN.md](./BUILD_PLAN.md) | Phase-ordered construction sequence with exit criteria — no calendar |
-| [HLD.md](./HLD.md) | System architecture, service decomposition, data architecture, ADRs |
-| [LLD.md](./LLD.md) | Classes, database schema, binary formats, API contracts, algorithms |
-| [CHANGELOG.md](./CHANGELOG.md) | Timestamped record of every change |
+Every figure in this README is regenerated by `pnpm eval` and traceable to
+`eval/results/calibration.json`, which includes per-item outcomes. If you change
+the corpus, the models, or the expansion templates, re-run it — the numbers will
+move, and they are supposed to.

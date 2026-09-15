@@ -1,78 +1,927 @@
 {
-  "timestamp": "2026-09-15T10:44:11.731Z",
+  "generatedAt": "2026-09-15T14:37:04.300Z",
   "hardware": "AMD EPYC 7B12 (24 cores, Node v24.18.0, linux 7.1.6-1rodete1-amd64)",
-  "datasetSize": 50,
-  "adversarialSize": 15,
-  "thresholds": {
-    "C_AMBER": 0.55,
-    "W_ASR": 0.3,
-    "W_SNR": 0.15,
-    "W_SIM": 0.35,
-    "W_MARGIN": 0.2,
-    "RRF_WEIGHTS": {
-      "obligation": 1,
-      "exception": 1.3,
-      "definition": 0.8,
-      "remedy": 0.8
-    }
+  "modelFingerprint": "sha256:afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+  "retrievalBackend": "flat-exact",
+  "mossSdkPresent": false,
+  "corpus": {
+    "file": "samples/term_sheet_v4.md",
+    "chunks": 32
   },
-  "metrics": {
-    "overall": {
-      "kronos": {
-        "recallAt1": 0.72,
-        "recallAt3": 0.98,
-        "mrr": 0.83
-      },
-      "baseline": {
-        "recallAt1": 0.6,
-        "recallAt3": 0.6,
-        "mrr": 0.6
-      },
-      "liftRecallAt3Pts": 38
+  "dataset": {
+    "n": 50,
+    "adversarial": 15
+  },
+  "recall": {
+    "kronos": {
+      "at1": 76,
+      "at3": 94,
+      "at5": 94,
+      "mrr": 0.847
+    },
+    "baseline": {
+      "at1": 78,
+      "at3": 94,
+      "at5": 94,
+      "mrr": 0.857
     },
     "adversarial": {
       "kronos": {
-        "recallAt1": 0.533,
-        "recallAt3": 0.933
+        "at1": 60,
+        "at3": 93.3
       },
       "baseline": {
-        "recallAt1": 0.133,
-        "recallAt3": 0.133
-      },
-      "liftRecallAt3Pts": 80
-    },
-    "reliability": {
-      "falseConfidentRatePct": 0
-    },
-    "latencyMs": {
-      "asrTailFlush": {
-        "p50": 112.4,
-        "p95": 198
-      },
-      "queryBuildAndExpand": {
-        "p50": 0.8,
-        "p95": 0.8
-      },
-      "batchEmbed4x": {
-        "p50": 4.2,
-        "p95": 4.2
-      },
-      "mossRetrieval": {
-        "p50": 0.4,
-        "p95": 1.22
-      },
-      "rrfAndStance": {
-        "p50": 1.8,
-        "p95": 1.8
-      },
-      "renderToPaint": {
-        "p50": 24.5,
-        "p95": 42
-      },
-      "totalEndToEnd": {
-        "p50": 144.1,
-        "p95": 144.92
+        "at1": 33.3,
+        "at3": 80
       }
     }
-  }
+  },
+  "latencyMs": {
+    "measured": {
+      "queryBuild": {
+        "p50": 0.07,
+        "p95": 0.55
+      },
+      "embed": {
+        "p50": 41.1,
+        "p95": 52.02
+      },
+      "vectorSearch": {
+        "p50": 0.1,
+        "p95": 0.33
+      },
+      "rank": {
+        "p50": 0.31,
+        "p95": 2.03
+      },
+      "retrievalTotal": {
+        "p50": 41.79,
+        "p95": 53.12
+      },
+      "asrDecode": [
+        {
+          "seconds": 2,
+          "decodeMs": [
+            699.2,
+            724.3,
+            743.5
+          ],
+          "rtf": 0.361
+        },
+        {
+          "seconds": 3,
+          "decodeMs": [
+            711.1,
+            762.4,
+            875
+          ],
+          "rtf": 0.261
+        },
+        {
+          "seconds": 5,
+          "decodeMs": [
+            752,
+            762.1,
+            809.3
+          ],
+          "rtf": 0.155
+        }
+      ]
+    },
+    "unmeasured": [
+      "paint"
+    ]
+  },
+  "gate": {
+    "green": 47,
+    "falseConfident": 2,
+    "falseConfidentRatePct": 4.26,
+    "thresholdSweep": [
+      {
+        "threshold": 0.4,
+        "shownCount": 50,
+        "coveragePct": 100,
+        "falseConfidentCount": 3,
+        "falseConfidentPct": 6,
+        "amberPct": 0
+      },
+      {
+        "threshold": 0.45,
+        "shownCount": 50,
+        "coveragePct": 100,
+        "falseConfidentCount": 3,
+        "falseConfidentPct": 6,
+        "amberPct": 0
+      },
+      {
+        "threshold": 0.5,
+        "shownCount": 50,
+        "coveragePct": 100,
+        "falseConfidentCount": 3,
+        "falseConfidentPct": 6,
+        "amberPct": 0
+      },
+      {
+        "threshold": 0.55,
+        "shownCount": 47,
+        "coveragePct": 94,
+        "falseConfidentCount": 2,
+        "falseConfidentPct": 4.3,
+        "amberPct": 6
+      },
+      {
+        "threshold": 0.6,
+        "shownCount": 47,
+        "coveragePct": 94,
+        "falseConfidentCount": 2,
+        "falseConfidentPct": 4.3,
+        "amberPct": 6
+      },
+      {
+        "threshold": 0.65,
+        "shownCount": 46,
+        "coveragePct": 92,
+        "falseConfidentCount": 1,
+        "falseConfidentPct": 2.2,
+        "amberPct": 8
+      },
+      {
+        "threshold": 0.7,
+        "shownCount": 45,
+        "coveragePct": 90,
+        "falseConfidentCount": 1,
+        "falseConfidentPct": 2.2,
+        "amberPct": 10
+      },
+      {
+        "threshold": 0.75,
+        "shownCount": 43,
+        "coveragePct": 86,
+        "falseConfidentCount": 1,
+        "falseConfidentPct": 2.3,
+        "amberPct": 14
+      },
+      {
+        "threshold": 0.8,
+        "shownCount": 38,
+        "coveragePct": 76,
+        "falseConfidentCount": 1,
+        "falseConfidentPct": 2.6,
+        "amberPct": 24
+      }
+    ],
+    "calibratedInSample": true
+  },
+  "perItem": [
+    {
+      "id": "a001",
+      "adversarial": true,
+      "kronosRank": 2,
+      "baseRank": 0,
+      "state": "green",
+      "composite": 0.8,
+      "topCosine": 0.7118145881274384,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.a",
+      "gold": [
+        "term_sheet_v4::4.2.1.b"
+      ],
+      "pipelineMs": 65.87
+    },
+    {
+      "id": "a002",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7278291425185887,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.b",
+      "gold": [
+        "term_sheet_v4::4.2.1.b"
+      ],
+      "pipelineMs": 53.12
+    },
+    {
+      "id": "a003",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.84,
+      "topCosine": 0.7272396161804807,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.a",
+      "gold": [
+        "term_sheet_v4::4.2.1.a"
+      ],
+      "pipelineMs": 54.64
+    },
+    {
+      "id": "a004",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7113412409127469,
+      "hit": true,
+      "topChunk": "term_sheet_v4::3.2.1.b",
+      "gold": [
+        "term_sheet_v4::3.2.1.b"
+      ],
+      "pipelineMs": 48.1
+    },
+    {
+      "id": "a005",
+      "adversarial": true,
+      "kronosRank": 2,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.89,
+      "topCosine": 0.9349864896837915,
+      "hit": true,
+      "topChunk": "term_sheet_v4::2.3",
+      "gold": [
+        "term_sheet_v4::2.3.1.a"
+      ],
+      "pipelineMs": 43.76
+    },
+    {
+      "id": "a006",
+      "adversarial": true,
+      "kronosRank": 2,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.8568572730572193,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.3",
+      "gold": [
+        "term_sheet_v4::4.3.1.a"
+      ],
+      "pipelineMs": 50.56
+    },
+    {
+      "id": "a007",
+      "adversarial": true,
+      "kronosRank": 0,
+      "baseRank": 0,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7346563514039879,
+      "hit": false,
+      "topChunk": "term_sheet_v4::4.5",
+      "gold": [
+        "term_sheet_v4::4.5.1.b"
+      ],
+      "pipelineMs": 52.59
+    },
+    {
+      "id": "a008",
+      "adversarial": true,
+      "kronosRank": 2,
+      "baseRank": 0,
+      "state": "green",
+      "composite": 0.71,
+      "topCosine": 0.5933839522512235,
+      "hit": true,
+      "topChunk": "term_sheet_v4::2.3.1.a",
+      "gold": [
+        "term_sheet_v4::6.1.2.a"
+      ],
+      "pipelineMs": 47.61
+    },
+    {
+      "id": "a009",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6583967709335007,
+      "hit": true,
+      "topChunk": "term_sheet_v4::6.2.1.a",
+      "gold": [
+        "term_sheet_v4::6.2.1.a"
+      ],
+      "pipelineMs": 41.93
+    },
+    {
+      "id": "a010",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6461720834882182,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.2.1.b",
+      "gold": [
+        "term_sheet_v4::8.2.1.b"
+      ],
+      "pipelineMs": 42.89
+    },
+    {
+      "id": "a011",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 3,
+      "state": "green",
+      "composite": 0.72,
+      "topCosine": 0.6867035903372637,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.4.1.a",
+      "gold": [
+        "term_sheet_v4::8.4.1.a"
+      ],
+      "pipelineMs": 46.72
+    },
+    {
+      "id": "a012",
+      "adversarial": true,
+      "kronosRank": 2,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7701078339042818,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.1",
+      "gold": [
+        "term_sheet_v4::9.1.1.b"
+      ],
+      "pipelineMs": 43.38
+    },
+    {
+      "id": "a013",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6876444435676803,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.1.1.b",
+      "gold": [
+        "term_sheet_v4::9.1.1.b"
+      ],
+      "pipelineMs": 49.07
+    },
+    {
+      "id": "a014",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.78,
+      "topCosine": 0.601352148402512,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.2",
+      "gold": [
+        "term_sheet_v4::9.2"
+      ],
+      "pipelineMs": 50.88
+    },
+    {
+      "id": "a015",
+      "adversarial": true,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7516469478582749,
+      "hit": true,
+      "topChunk": "term_sheet_v4::3.2.1.b",
+      "gold": [
+        "term_sheet_v4::3.2.1.b"
+      ],
+      "pipelineMs": 39.96
+    },
+    {
+      "id": "a016",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.8000843354360848,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.churn",
+      "gold": [
+        "term_sheet_v4::def.churn"
+      ],
+      "pipelineMs": 38.29
+    },
+    {
+      "id": "a017",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7075661689801996,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.arr",
+      "gold": [
+        "term_sheet_v4::def.arr"
+      ],
+      "pipelineMs": 36.9
+    },
+    {
+      "id": "a018",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.802113145753886,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.ebitda",
+      "gold": [
+        "term_sheet_v4::def.ebitda"
+      ],
+      "pipelineMs": 41.17
+    },
+    {
+      "id": "a019",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.697116410551565,
+      "hit": true,
+      "topChunk": "term_sheet_v4::2.1",
+      "gold": [
+        "term_sheet_v4::2.1"
+      ],
+      "pipelineMs": 37.95
+    },
+    {
+      "id": "a020",
+      "adversarial": false,
+      "kronosRank": 0,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.62,
+      "topCosine": 0.39499480715859847,
+      "hit": false,
+      "topChunk": "term_sheet_v4::2.3.1.a",
+      "gold": [
+        "term_sheet_v4::2.2"
+      ],
+      "pipelineMs": 40.15
+    },
+    {
+      "id": "a021",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.76,
+      "topCosine": 0.8180944781581939,
+      "hit": true,
+      "topChunk": "term_sheet_v4::2.3.1.a",
+      "gold": [
+        "term_sheet_v4::2.3"
+      ],
+      "pipelineMs": 42.11
+    },
+    {
+      "id": "a022",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6741242517998646,
+      "hit": true,
+      "topChunk": "term_sheet_v4::3.1",
+      "gold": [
+        "term_sheet_v4::3.1"
+      ],
+      "pipelineMs": 38.43
+    },
+    {
+      "id": "a023",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6378645068312088,
+      "hit": true,
+      "topChunk": "term_sheet_v4::3.2.1.b",
+      "gold": [
+        "term_sheet_v4::3.2"
+      ],
+      "pipelineMs": 36.3
+    },
+    {
+      "id": "a024",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 2,
+      "state": "green",
+      "composite": 0.79,
+      "topCosine": 0.7848049893233469,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.b",
+      "gold": [
+        "term_sheet_v4::4.2"
+      ],
+      "pipelineMs": 34.67
+    },
+    {
+      "id": "a025",
+      "adversarial": false,
+      "kronosRank": 2,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.75,
+      "topCosine": 0.704004043428531,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.a",
+      "gold": [
+        "term_sheet_v4::4.2"
+      ],
+      "pipelineMs": 40.36
+    },
+    {
+      "id": "a026",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6288560211971855,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.3.1.a",
+      "gold": [
+        "term_sheet_v4::4.3"
+      ],
+      "pipelineMs": 35.21
+    },
+    {
+      "id": "a027",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.89,
+      "topCosine": 0.7132330984836786,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.5",
+      "gold": [
+        "term_sheet_v4::4.5"
+      ],
+      "pipelineMs": 43.88
+    },
+    {
+      "id": "a028",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.66,
+      "topCosine": 0.5506774172330162,
+      "hit": true,
+      "topChunk": "term_sheet_v4::6.1.2.a",
+      "gold": [
+        "term_sheet_v4::6.1"
+      ],
+      "pipelineMs": 39.29
+    },
+    {
+      "id": "a029",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6766009001256837,
+      "hit": true,
+      "topChunk": "term_sheet_v4::6.2",
+      "gold": [
+        "term_sheet_v4::6.2"
+      ],
+      "pipelineMs": 48.62
+    },
+    {
+      "id": "a030",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.91,
+      "topCosine": 0.6621729801944031,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.1",
+      "gold": [
+        "term_sheet_v4::8.1"
+      ],
+      "pipelineMs": 38.57
+    },
+    {
+      "id": "a031",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7143986575137828,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.1",
+      "gold": [
+        "term_sheet_v4::8.1"
+      ],
+      "pipelineMs": 41.79
+    },
+    {
+      "id": "a032",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7384581908876507,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.2.1.b",
+      "gold": [
+        "term_sheet_v4::8.2"
+      ],
+      "pipelineMs": 40.66
+    },
+    {
+      "id": "a033",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.84,
+      "topCosine": 0.5486517096204309,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.2.1.b",
+      "gold": [
+        "term_sheet_v4::8.2"
+      ],
+      "pipelineMs": 50.54
+    },
+    {
+      "id": "a034",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.76,
+      "topCosine": 0.6666057651545396,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.4",
+      "gold": [
+        "term_sheet_v4::8.4"
+      ],
+      "pipelineMs": 39.69
+    },
+    {
+      "id": "a035",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.82,
+      "topCosine": 0.6651394986710722,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.4.1.a",
+      "gold": [
+        "term_sheet_v4::8.4"
+      ],
+      "pipelineMs": 36.1
+    },
+    {
+      "id": "a036",
+      "adversarial": false,
+      "kronosRank": 3,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.87,
+      "topCosine": 0.5830572978143825,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.1.1.b",
+      "gold": [
+        "term_sheet_v4::9.1"
+      ],
+      "pipelineMs": 42.13
+    },
+    {
+      "id": "a037",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7129585137656368,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.2",
+      "gold": [
+        "term_sheet_v4::9.2"
+      ],
+      "pipelineMs": 44.66
+    },
+    {
+      "id": "a038",
+      "adversarial": false,
+      "kronosRank": 2,
+      "baseRank": 1,
+      "state": "amber",
+      "composite": 0.51,
+      "topCosine": 0.4289456792786126,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.3.1.a",
+      "gold": [
+        "term_sheet_v4::9.2"
+      ],
+      "pipelineMs": 38.88
+    },
+    {
+      "id": "a039",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7844414956914988,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.a",
+      "gold": [
+        "term_sheet_v4::4.2.1.a"
+      ],
+      "pipelineMs": 37.99
+    },
+    {
+      "id": "a040",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.8358800064761002,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.2.1.b",
+      "gold": [
+        "term_sheet_v4::4.2.1.b"
+      ],
+      "pipelineMs": 42.2
+    },
+    {
+      "id": "a041",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6512028997480466,
+      "hit": true,
+      "topChunk": "term_sheet_v4::3.2.1.b",
+      "gold": [
+        "term_sheet_v4::3.2.1.b"
+      ],
+      "pipelineMs": 47.58
+    },
+    {
+      "id": "a042",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.651658901612038,
+      "hit": true,
+      "topChunk": "term_sheet_v4::2.3.1.a",
+      "gold": [
+        "term_sheet_v4::2.3.1.a"
+      ],
+      "pipelineMs": 48.17
+    },
+    {
+      "id": "a043",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.7363993589422985,
+      "hit": true,
+      "topChunk": "term_sheet_v4::4.3.1.a",
+      "gold": [
+        "term_sheet_v4::4.3.1.a"
+      ],
+      "pipelineMs": 41.64
+    },
+    {
+      "id": "a044",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6234038280776089,
+      "hit": true,
+      "topChunk": "term_sheet_v4::6.1.2.a",
+      "gold": [
+        "term_sheet_v4::6.1.2.a"
+      ],
+      "pipelineMs": 45.92
+    },
+    {
+      "id": "a045",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.6456561821909379,
+      "hit": true,
+      "topChunk": "term_sheet_v4::8.4.1.a",
+      "gold": [
+        "term_sheet_v4::8.4.1.a"
+      ],
+      "pipelineMs": 41.12
+    },
+    {
+      "id": "a046",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.900491867376042,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.material_adverse_effect",
+      "gold": [
+        "term_sheet_v4::def.material_adverse_effect"
+      ],
+      "pipelineMs": 34.13
+    },
+    {
+      "id": "a047",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.8733071137601611,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.escrow_account",
+      "gold": [
+        "term_sheet_v4::def.escrow_account"
+      ],
+      "pipelineMs": 42.42
+    },
+    {
+      "id": "a048",
+      "adversarial": false,
+      "kronosRank": 1,
+      "baseRank": 1,
+      "state": "green",
+      "composite": 0.92,
+      "topCosine": 0.8281448273569467,
+      "hit": true,
+      "topChunk": "term_sheet_v4::def.liquidation_preference",
+      "gold": [
+        "term_sheet_v4::def.liquidation_preference"
+      ],
+      "pipelineMs": 37.89
+    },
+    {
+      "id": "a049",
+      "adversarial": false,
+      "kronosRank": 2,
+      "baseRank": 1,
+      "state": "amber",
+      "composite": 0.5,
+      "topCosine": 0.4255123539341265,
+      "hit": true,
+      "topChunk": "term_sheet_v4::9.1.1.b",
+      "gold": [
+        "term_sheet_v4::2.2"
+      ],
+      "pipelineMs": 39.19
+    },
+    {
+      "id": "a050",
+      "adversarial": false,
+      "kronosRank": 0,
+      "baseRank": 1,
+      "state": "amber",
+      "composite": 0.52,
+      "topCosine": 0.44475229516252424,
+      "hit": false,
+      "topChunk": "term_sheet_v4::6.2.1.a",
+      "gold": [
+        "term_sheet_v4::9.1"
+      ],
+      "pipelineMs": 38.23
+    }
+  ]
 }

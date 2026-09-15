@@ -7,8 +7,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@kronos/audio": "workspace:*",
     "@kronos/core": "workspace:*",
-    "@kronos/retrieval": "workspace:*",
-    "@kronos/ingest": "workspace:*"
+    "@kronos/ingest": "workspace:*",
+    "@kronos/retrieval": "workspace:*"
   }
 }

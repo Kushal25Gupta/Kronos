@@ -75,7 +75,7 @@ export const Hud: React.FC<HudProps> = ({
               <ClauseCard
                 key={res.chunk.id}
                 result={res}
-                mossMs={outcome.timing.mossMs}
+                vectorSearchMs={outcome.timing.vectorSearchMs}
                 totalMs={outcome.timing.totalFromSpeechEnd}
                 isTopCard={idx === 0}
               />
@@ -200,7 +200,7 @@ export const Hud: React.FC<HudProps> = ({
         transcript={outcome?.transcript ?? ""}
         gateState={outcome?.state ?? "green"}
         totalMs={outcome?.timing.totalFromSpeechEnd ?? 0}
-        mossMs={outcome?.timing.mossMs ?? 0}
+        vectorSearchMs={outcome?.timing.vectorSearchMs ?? 0}
       />
     </div>
   );

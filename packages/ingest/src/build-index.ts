@@ -17,7 +17,23 @@ export class IndexBuilder {
     doc: ParsedDocument,
     chunks: readonly Chunk[]
   ): Promise<{ binary: Uint8Array; meta: IndexArtifactMeta; vectors: Float32Array }> {
-    const texts = chunks.map((c) => `${c.clauseLabel} ${c.text}`);
+    await this.embedder.init();
+
+    // Embedding input = heading trail + clause label + verbatim text.
+    //
+    // The heading trail matters because clauses are written to be read in
+    // context. "Such amounts shall be released within 30 days" is nearly
+    // meaningless alone, but under ARTICLE 7 — ESCROW it is clearly about escrow
+    // release. Prepending the trail puts that context into the vector.
+    //
+    // This concatenation is the EMBEDDING INPUT ONLY. chunk.text is stored
+    // verbatim and untouched, because that is what gets quoted on screen
+    // (LLD.md §2.2).
+    const texts = chunks.map((c) => {
+      const trail = c.headingTrail.length > 0 ? `${c.headingTrail.join(" > ")} — ` : "";
+      return `${trail}${c.clauseLabel} ${c.text}`;
+    });
+
     const embeddings = await this.embedder.embed(texts);
 
     const dimensions = this.embedder.dimensions;
@@ -25,6 +41,7 @@ export class IndexBuilder {
     embeddings.forEach((vec, idx) => {
       packedVectors.set(vec, idx * dimensions);
     });
+
 
     const meta: IndexArtifactMeta = {
       version: 1,

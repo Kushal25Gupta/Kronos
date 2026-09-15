@@ -20,6 +20,7 @@
 import {
   Chunk,
   CONFIG,
+  EMBEDDING_FINGERPRINT,
   ErrorCode,
   IndexArtifactMeta,
   KronosError,
@@ -113,7 +114,7 @@ export async function packIndexArtifact(
 
 export async function unpackAndVerifyIndexArtifact(
   buffer: ArrayBuffer | Uint8Array,
-  expectedModelFingerprint = CONFIG.embedding.MODEL_FINGERPRINT
+  expectedModelFingerprint = EMBEDDING_FINGERPRINT
 ): Promise<LoadedIndexArtifact> {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   if (bytes.byteLength < HEADER_SIZE) {

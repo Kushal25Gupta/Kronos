@@ -34,7 +34,10 @@ export class VadEngine {
 
     this.emit({ type: "level", rms });
 
-    // Probability heuristic calibrated to Silero VAD behaviour
+    // Energy-based speech probability. This is an RMS-over-noise-floor heuristic,
+    // NOT a neural VAD — Silero would be more robust to non-speech transients
+    // (keyboard, paper, door) but adds a second model to the load path. Stated
+    // plainly so the tradeoff is visible rather than implied.
     const snrRatio = rms / Math.max(1e-5, this.noiseFloorRms);
     const speechProb = Math.min(1.0, Math.max(0.0, (snrRatio - 1.5) / 6.0));
 

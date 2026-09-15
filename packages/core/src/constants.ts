@@ -22,12 +22,16 @@ export const CONFIG = {
     CONDITION_ON_PREVIOUS: false, // prevents repetition loops on poor audio
   },
   embedding: {
-    MODEL: "all-MiniLM-L6-v2",
+    MODEL: "Xenova/all-MiniLM-L6-v2",
     DIMENSIONS: 384,
     MAX_TOKENS: 512,
     INGEST_BATCH: 32,
-    MODEL_FINGERPRINT: "sha256:kronos-minilm-l6-v2-q8-384d-v1",
+    // The real fingerprint is the SHA-256 of the vendored ONNX weights and lives
+    // in the generated ./model-fingerprints.ts. It is deliberately NOT a
+    // hand-written string here — a hardcoded fingerprint cannot detect that the
+    // index was built with different weights than the ones being served.
   },
+
   chunking: {
     MIN_TOKENS: 40,
     MAX_TOKENS: 320,
@@ -51,7 +55,24 @@ export const CONFIG = {
     W_SNR: 0.15,
     W_SIM: 0.35,
     W_MARGIN: 0.20,
+
+    // Cosine operating range for all-MiniLM-L6-v2 over legal clause text.
+    // Below SIM_FLOOR the match contributes no confidence; above SIM_CEIL it
+    // contributes full confidence. See eval/results/RESULTS.md for the observed
+    // distribution these were set from.
+    SIM_FLOOR: 0.30,
+    SIM_CEIL: 0.62,
+
+    // Cosine gap between rank 1 and rank 2 at which the ranking is treated as
+    // unambiguous.
+    MARGIN_CEIL: 0.08,
+
+    // Green/amber decision threshold. [CALIBRATED on the 50-item evaluation set
+    // — see the threshold sweep in RESULTS.md. Because it was chosen on the same
+    // data it is scored against, the reported false-confident rate is an
+    // in-sample figure and optimistic.]
     C_AMBER: 0.55,
+
     STANCE_MIN_CONFIDENCE: 0.25,
   },
   ui: {

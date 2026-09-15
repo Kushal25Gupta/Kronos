@@ -4,6 +4,10 @@
   "private": true,
   "description": "Local-first recall copilot for high-stakes contract negotiation",
   "scripts": {
+    "//": "bootstrap must run before dev/test/eval on a fresh clone — model weights are not committed",
+    "bootstrap": "pnpm fetch-models && pnpm fetch-audio && pnpm ingest samples/term_sheet_v4.md -o apps/web/public/index/term_sheet.moss",
+    "fetch-models": "node scripts/fetch-models.mjs",
+    "fetch-audio": "node scripts/fetch-audio.mjs",
     "build": "pnpm -r build",
     "dev": "pnpm --filter @kronos/web dev",
     "ingest": "pnpm --filter @kronos/ingest ingest",

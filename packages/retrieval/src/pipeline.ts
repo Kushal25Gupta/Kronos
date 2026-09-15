@@ -36,6 +36,20 @@ export class RetrievalPipeline {
     this.gate = new ConfidenceGate();
   }
 
+  /**
+   * Loads model weights and warms the inference session.
+   *
+   * Called explicitly at session start rather than lazily on first query. The
+   * first ONNX run is markedly slower than steady state (graph setup, arena
+   * allocation), and charging that to the first thing someone says in a
+   * negotiation is exactly the wrong place to pay it.
+   */
+  async init(): Promise<void> {
+    await this.embedder.init();
+    // Warm the graph so the first real query sees steady-state latency.
+    await this.embedder.embed(["warmup"]);
+  }
+
   syncCorpusTerms(): void {
     const allTerms = new Set<string>();
     for (const chunk of this.index.getAllChunks()) {
@@ -45,6 +59,7 @@ export class RetrievalPipeline {
     }
     this.parser.setDefinedTerms(Array.from(allTerms));
   }
+
 
   async query(input: QueryInput): Promise<QueryOutcome> {
     const t0 = performance.now();
@@ -66,11 +81,11 @@ export class RetrievalPipeline {
           tAsrDone: input.tAsrDone,
           tQueryBuilt: now,
           tEmbedDone: now,
-          tMossDone: now,
+          tSearchDone: now,
           tRanked: now,
           tPaint: now,
           totalFromSpeechEnd: Number(Math.max(1, now - input.tSpeechEnd).toFixed(2)),
-          mossMs: 0,
+          vectorSearchMs: 0,
           audioMs: input.audioMs ?? 0,
           expansionCount: 0,
           candidateCount: 0,
@@ -87,10 +102,10 @@ export class RetrievalPipeline {
     const vectors = await this.embedder.embed(expansions.map((e) => e.text));
     const tEmbedDone = performance.now();
 
-    // 4. Retrieve top-k per expansion from Moss
+    // 4. Retrieve top-k per expansion from the vector index
     const batchHits = await this.index.searchBatch(vectors, CONFIG.retrieval.TOP_K_PER_EXPANSION);
-    const tMossDone = performance.now();
-    const mossMs = Number(this.index.lastQueryMs.toFixed(2));
+    const tSearchDone = performance.now();
+    const vectorSearchMs = Number(this.index.lastQueryMs.toFixed(2));
 
     const hitMap = new Map<ExpansionKind, readonly SearchHit[]>();
     expansions.forEach((exp, idx) => {
@@ -106,38 +121,38 @@ export class RetrievalPipeline {
     const withXrefs = this.fusion.expandCrossRefs(candidates, this.index.getAllChunks());
     const labelled = withXrefs.map((c) => this.labeller.label(c, assertion, rank1Margin));
 
-    const isBreachOrClaimAssertion =
-      assertion.obligation.some((o) =>
-        ["violates", "violate", "exceeds", "exceed", "breach", "over", "without", "dipped", "owe", "pushed", "holding", "dropped"].includes(o)
-      ) ||
-      /violat|exceed|over|without|breach|dipped|owe|pushed|holding|dropped|rising|drag along|tax fraud|rival/i.test(
-        assertion.raw
-      );
+    // CARVE-OUT PRIORITY
+    //
+    // When the other side is making an accusation ("you breached X"), the single
+    // most useful thing on screen is the exception that rebuts it, not the rule
+    // they just quoted at you. RRF ranks by retrieval agreement alone and has no
+    // notion of which clause is tactically useful, so we apply a small, bounded
+    // nudge to exception clauses that are already competitive.
+    //
+    // This is driven entirely by the parsed assertion's obligation lexicon — NOT
+    // by a hand-written list of phrases from the eval set. An earlier version of
+    // this file matched literals like "tax fraud" and "rival", which is just the
+    // answer key wearing a trenchcoat: it inflates benchmark scores and does
+    // nothing for a real user who phrases things differently.
+    const isAccusatory = assertion.obligation.length > 0;
 
     const topScore = labelled[0]?.fusedScore ?? 0;
 
-    // Sort so topical 'supports' (carve-out) clauses appear at rank 1 when within topical range of top candidate
-    labelled.sort((a, b) => {
-      let scoreA = a.fusedScore;
-      let scoreB = b.fusedScore;
-      if (isBreachOrClaimAssertion) {
-        if (
-          a.stance === "supports" &&
-          a.chunk.signals.hasExceptionMarker &&
-          a.fusedScore >= topScore * 0.72
-        ) {
-          scoreA += 0.025;
-        }
-        if (
-          b.stance === "supports" &&
-          b.chunk.signals.hasExceptionMarker &&
-          b.fusedScore >= topScore * 0.72
-        ) {
-          scoreB += 0.025;
-        }
-      }
-      return scoreB - scoreA;
-    });
+    // The nudge is deliberately small and gated on being within 72% of the top
+    // score. It can reorder near-ties; it cannot promote an irrelevant clause.
+    const CARVE_OUT_NUDGE = 0.025;
+    const COMPETITIVE_FRACTION = 0.72;
+
+    const nudge = (c: (typeof labelled)[number]): number =>
+      isAccusatory &&
+      c.stance === "supports" &&
+      c.chunk.signals.hasExceptionMarker &&
+      c.fusedScore >= topScore * COMPETITIVE_FRACTION
+        ? CARVE_OUT_NUDGE
+        : 0;
+
+    labelled.sort((a, b) => b.fusedScore + nudge(b) - (a.fusedScore + nudge(a)));
+
 
     // 6. Confidence gate evaluation
     const verdict = this.gate.evaluate(input, labelled);
@@ -158,11 +173,11 @@ export class RetrievalPipeline {
         tAsrDone: input.tAsrDone,
         tQueryBuilt,
         tEmbedDone,
-        tMossDone,
+        tSearchDone,
         tRanked,
         tPaint: tRanked, // UI updates tPaint in requestAnimationFrame
         totalFromSpeechEnd,
-        mossMs,
+        vectorSearchMs,
         audioMs: input.audioMs ?? 0,
         expansionCount: expansions.length,
         candidateCount: labelled.length,
@@ -183,8 +198,8 @@ export class RetrievalPipeline {
 
     // Standard single-query top-1 / top-k retrieval without RRF or cross-reference expansion
     const hits = await this.index.search(vector, CONFIG.retrieval.MAX_CARDS);
-    const tMossDone = performance.now();
-    const mossMs = Number(this.index.lastQueryMs.toFixed(2));
+    const tSearchDone = performance.now();
+    const vectorSearchMs = Number(this.index.lastQueryMs.toFixed(2));
 
     const results = hits
       .map((hit) => {
@@ -220,11 +235,11 @@ export class RetrievalPipeline {
         tAsrDone: input.tAsrDone,
         tQueryBuilt,
         tEmbedDone,
-        tMossDone,
+        tSearchDone,
         tRanked,
         tPaint: tRanked,
         totalFromSpeechEnd: Number(Math.max(1, tRanked - input.tSpeechEnd).toFixed(2)),
-        mossMs,
+        vectorSearchMs,
         audioMs: input.audioMs ?? 0,
         expansionCount: 1,
         candidateCount: results.length,

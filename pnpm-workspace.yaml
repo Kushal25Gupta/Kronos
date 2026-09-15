@@ -3,4 +3,9 @@ packages:
   - "apps/*"
   - "eval"
 allowBuilds:
+  # esbuild: required by tsx/vitest toolchain.
   esbuild: true
+  # protobufjs + sharp: transitive build deps of @xenova/transformers (onnxruntime).
+  # Needed so the real all-MiniLM-L6-v2 and whisper-tiny.en ONNX models load in Node.
+  protobufjs: true
+  sharp: true

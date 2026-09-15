@@ -193,6 +193,7 @@ export class StanceLabeller {
       return {
         chunk,
         fusedScore: candidate.fusedScore,
+        bestCosine: candidate.bestCosine,
         perExpansion: candidate.perExpansion,
         rank1Margin,
         stance: "context",
@@ -250,6 +251,7 @@ export class StanceLabeller {
     return {
       chunk,
       fusedScore: candidate.fusedScore,
+      bestCosine: candidate.bestCosine,
       perExpansion: candidate.perExpansion,
       rank1Margin,
       stance,

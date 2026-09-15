@@ -1,187 +1,149 @@
 /**
- * Isomorphic 384-dimensional Embedding Service for KRONOS (LLD.md §3, SPEC.md §2)
- * Guarantees byte-identical embeddings across Node ingest and Browser query time.
+ * Real sentence-embedding service for KRONOS (LLD.md §3, SPEC.md §2).
+ *
+ * Runs the actual all-MiniLM-L6-v2 transformer (int8-quantised ONNX) via
+ * transformers.js, with mean pooling over the token dimension and L2
+ * normalisation, which is the pooling scheme the model was trained under.
+ *
+ * Isomorphic by construction: the same class runs in Node (ingest + eval) and
+ * in the browser worker (query time). Both load weights from the same vendored
+ * files, so a vector produced at ingest and a vector produced at query time are
+ * directly comparable. That property is load-bearing — the index is built once,
+ * offline, and searched later in a different runtime.
+ *
+ * NETWORK: `allowRemoteModels` is false. If the vendored weights are missing,
+ * this throws rather than silently reaching out to huggingface.co. A product
+ * whose entire pitch is "documents never leave the machine" must not have a
+ * quiet fallback that phones home.
  */
 
-import { CONFIG } from "@kronos/core";
-import { l2Normalize } from "./utils.js";
+import { CONFIG, EMBEDDING_FINGERPRINT, MODEL_FINGERPRINTS } from "@kronos/core";
 
 export interface EmbeddingService {
+  init(): Promise<void>;
   embed(texts: readonly string[]): Promise<Float32Array[]>;
   fingerprint(): string;
   readonly dimensions: number;
 }
 
-/**
- * Semantic concept anchors mapped to orthogonal subspaces of the 384-dim space
- * so that domain concepts, legal obligations, exceptions/carve-outs, definitions,
- * and remedies cluster with high cosine separability.
- */
-const LEGAL_CONCEPT_GROUPS: readonly { readonly id: string; readonly terms: readonly string[]; readonly dimStart: number }[] = [
-  {
-    id: "churn_arr",
-    terms: ["churn", "quarterly churn", "ending arr", "annual recurring revenue", "retention", "logo churn", "net dollar retention", "attrition"],
-    dimStart: 0,
-  },
-  {
-    id: "minimum_threshold",
-    terms: ["minimum", "minimums", "threshold", "thresholds", "exceed", "violates", "floor", "cap", "maximum", "not exceed", "4.0%", "four percent", "$50,000,000", "50m"],
-    dimStart: 16,
-  },
-  {
-    id: "exception_carveout",
-    terms: ["notwithstanding", "exempt", "exemption", "carve-out", "carveout", "except", "provided that", "shall not apply", "exclusion", "excluded", "waived", "unless"],
-    dimStart: 32,
-  },
-  {
-    id: "obligation_covenant",
-    terms: ["shall", "must", "covenant", "covenants", "obligated", "required", "undertakes", "agrees to", "comply", "breach", "default"],
-    dimStart: 48,
-  },
-  {
-    id: "definition_terms",
-    terms: ["means", "shall mean", "defined", "definition", "for purposes of this agreement", "has the meaning", "refers to"],
-    dimStart: 64,
-  },
-  {
-    id: "remedy_cure",
-    terms: ["remedy", "sole remedy", "cure", "cure period", "in the event", "termination", "liquidated damages", "indemnify", "indemnification"],
-    dimStart: 80,
-  },
-  {
-    id: "revenue_financial",
-    terms: ["revenue", "annual revenue", "ebitda", "arr", "valuation", "purchase price", "working capital", "earnout", "financial statements", "audit"],
-    dimStart: 96,
-  },
-  {
-    id: "indemnification_liability",
-    terms: ["indemnification", "indemnity", "basket", "deductible", "cap", "survival", "representation", "warranty", "representations", "warranties", "losses", "third party claim"],
-    dimStart: 112,
-  },
-  {
-    id: "governance_control",
-    terms: ["board", "director", "voting", "protective provisions", "consent", "veto", "supermajority", "observer", "quorum"],
-    dimStart: 128,
-  },
-  {
-    id: "drag_tag_transfer",
-    terms: ["drag-along", "drag along", "tag-along", "tag along", "co-sale", "right of first refusal", "rofr", "transfer", "lock-up", "shares"],
-    dimStart: 144,
-  },
-  {
-    id: "liquidation_preference",
-    terms: ["liquidation", "liquidation preference", "participating", "non-participating", "preferred", "senior", "proceeds", "distribution", "deemed liquidation"],
-    dimStart: 160,
-  },
-  {
-    id: "mac_closing",
-    terms: ["material adverse effect", "material adverse change", "mac", "mae", "closing", "conditions precedent", "drop dead date", "outside date"],
-    dimStart: 176,
-  },
-  {
-    id: "escrow_holdback",
-    terms: ["escrow", "holdback", "escrow agent", "escrow account", "release", "escrow period", "12 months", "18 months"],
-    dimStart: 192,
-  },
-  {
-    id: "ip_confidentiality",
-    terms: ["intellectual property", "ip", "source code", "open source", "confidential", "confidentiality", "nda", "trade secret", "proprietary"],
-    dimStart: 208,
-  },
-  {
-    id: "exclusivity_nosho",
-    terms: ["exclusivity", "no-shop", "no shop", "solicitation", "superior proposal", "breakup fee", "termination fee", "fiduciary out"],
-    dimStart: 224,
-  },
-  {
-    id: "temporal_quarters",
-    terms: ["q1", "q2", "q3", "q4", "first quarter", "second quarter", "third quarter", "fourth quarter", "fiscal year", "quarterly", "annual"],
-    dimStart: 240,
-  },
-];
+export interface EmbedderOptions {
+  /**
+   * Directory containing the vendored model repos.
+   * Node: a filesystem path (default: apps/web/public/models).
+   * Browser: a same-origin URL prefix, e.g. "/models".
+   */
+  readonly modelPath?: string;
+  /** Emit per-batch progress during long ingest runs. */
+  readonly onProgress?: (done: number, total: number) => void;
+}
 
-function fnv1aHash(str: string, seed = 2166136261): number {
-  let h = seed >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h;
+const MODEL_ID = MODEL_FINGERPRINTS.embedding.repo;
+
+function isNode(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.versions != null &&
+    process.versions.node != null
+  );
+}
+
+/** Default location of the vendored weights when running under Node. */
+function defaultNodeModelPath(): string {
+  // packages/retrieval/src/ -> repo root -> apps/web/public/models
+  const here = new URL(".", import.meta.url).pathname;
+  return new URL("../../../apps/web/public/models/", `file://${here}`).pathname;
 }
 
 export class MiniLmEmbedder implements EmbeddingService {
   readonly dimensions = CONFIG.embedding.DIMENSIONS;
 
+  private extractor: unknown = null;
+  private initPromise: Promise<void> | null = null;
+  private readonly modelPath: string;
+  private readonly onProgress?: (done: number, total: number) => void;
+
+  constructor(options: EmbedderOptions = {}) {
+    this.modelPath =
+      options.modelPath ?? (isNode() ? defaultNodeModelPath() : "/models");
+    this.onProgress = options.onProgress;
+  }
+
   fingerprint(): string {
-    return CONFIG.embedding.MODEL_FINGERPRINT;
+    return EMBEDDING_FINGERPRINT;
+  }
+
+  async init(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      const { pipeline, env } = await import("@xenova/transformers");
+
+      // Zero egress: weights must come from the vendored directory, never the hub.
+      env.allowRemoteModels = false;
+      env.allowLocalModels = true;
+      env.localModelPath = this.modelPath;
+      if (env.backends?.onnx?.wasm) {
+        // Single-threaded WASM avoids requiring cross-origin isolation purely for
+        // the embedder; COOP/COEP are still set for SharedArrayBuffer in audio.
+        env.backends.onnx.wasm.numThreads = 1;
+      }
+
+      this.extractor = await pipeline("feature-extraction", MODEL_ID, {
+        quantized: true,
+      });
+    })();
+
+    return this.initPromise;
   }
 
   async embed(texts: readonly string[]): Promise<Float32Array[]> {
-    return texts.map((text) => this.embedSingle(text));
+    if (texts.length === 0) return [];
+    await this.init();
+
+    const extract = this.extractor as (
+      input: string[],
+      opts: { pooling: "mean"; normalize: boolean }
+    ) => Promise<{ data: Float32Array | number[]; dims: number[] }>;
+
+    const out: Float32Array[] = [];
+    const batchSize = CONFIG.embedding.INGEST_BATCH;
+
+    for (let start = 0; start < texts.length; start += batchSize) {
+      const batch = texts.slice(start, start + batchSize).map(normaliseForEmbedding);
+
+      const result = await extract(batch, { pooling: "mean", normalize: true });
+      const dim = result.dims[result.dims.length - 1];
+
+      if (dim !== this.dimensions) {
+        throw new Error(
+          `Embedding dimension mismatch: model produced ${dim}, expected ${this.dimensions}`
+        );
+      }
+
+      for (let i = 0; i < batch.length; i++) {
+        const slice = (result.data as Float32Array).slice(i * dim, (i + 1) * dim);
+        out.push(Float32Array.from(slice));
+      }
+
+      this.onProgress?.(Math.min(start + batchSize, texts.length), texts.length);
+    }
+
+    return out;
   }
+}
 
-  private embedSingle(rawText: string): Float32Array {
-    const vec = new Float32Array(this.dimensions);
-    const lower = rawText.toLowerCase();
-    const tokens = lower
-      .replace(/[^a-z0-9§.$%\s-]/g, " ")
-      .split(/\s+/)
-      .filter((t) => t.length > 1);
-
-    // 1. Subspace activations from domain legal concept groups (dims 0..255)
-    for (const group of LEGAL_CONCEPT_GROUPS) {
-      let groupScore = 0;
-      const isStructuralGroup =
-        group.id === "exception_carveout" ||
-        group.id === "obligation_covenant" ||
-        group.id === "definition_terms" ||
-        group.id === "remedy_cure";
-
-      for (const term of group.terms) {
-        if (lower.includes(term)) {
-          groupScore += isStructuralGroup ? 0.35 : term.includes(" ") ? 2.4 : 1.5;
-        }
-      }
-      if (groupScore > 0) {
-        for (let offset = 0; offset < 16; offset++) {
-          const dimIdx = (group.dimStart + offset) % this.dimensions;
-          const phase = Math.sin((offset + 1) * 1.17 + group.dimStart * 0.1);
-          vec[dimIdx] += groupScore * (0.7 + 0.3 * phase);
-        }
-      }
-    }
-
-    // 2. Clause number and section reference encoding (dims 256..287)
-    const sectionMatches = lower.match(/(?:§|section\s+)(\d+(?:\.\d+)*(?:\([a-z0-9]+\))*)/g) ?? [];
-    for (const sec of sectionMatches) {
-      const h = fnv1aHash(sec, 987654321);
-      for (let k = 0; k < 4; k++) {
-        const idx = 256 + ((h + k * 7) % 32);
-        vec[idx] += 1.1;
-      }
-    }
-
-    // 3. Token unigram & bigram semantic hashing into dims 288..383
-    for (let i = 0; i < tokens.length; i++) {
-      const tok = tokens[i];
-      const h1 = fnv1aHash(tok, 2166136261);
-      const idx1 = 288 + (h1 % 96);
-      const sign1 = (h1 & 1) === 0 ? 1 : -1;
-      vec[idx1] += sign1 * 1.4;
-
-      // Also scatter into full space for fine-grained lexical matching
-      const fullIdx = h1 % this.dimensions;
-      vec[fullIdx] += sign1 * 0.85;
-
-      if (i + 1 < tokens.length) {
-        const bigram = `${tok}_${tokens[i + 1]}`;
-        const h2 = fnv1aHash(bigram, 1469598103);
-        const idx2 = 288 + (h2 % 96);
-        const sign2 = (h2 & 1) === 0 ? 1 : -1;
-        vec[idx2] += sign2 * 1.1;
-      }
-    }
-
-    return l2Normalize(vec);
-  }
+/**
+ * Whitespace-normalises text before embedding.
+ *
+ * Deliberately conservative: no stemming, no stopword removal, no lowercasing.
+ * MiniLM's WordPiece tokenizer handles casing itself, and legal text carries
+ * meaning in capitalisation ("Confidential Information" as a defined term vs.
+ * the same words used descriptively) that aggressive preprocessing destroys.
+ *
+ * Truncation to the model's 512-token window happens inside the tokenizer and
+ * affects the embedding input ONLY. Chunk.text is never mutated — a user must
+ * never be shown a clause that stops mid-sentence (LLD.md §2.2).
+ */
+function normaliseForEmbedding(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }

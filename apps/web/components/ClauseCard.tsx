@@ -5,7 +5,7 @@ import { RankedResult, Stance } from "@kronos/core";
 
 interface ClauseCardProps {
   result: RankedResult;
-  mossMs: number;
+  vectorSearchMs: number;
   totalMs: number;
   isTopCard?: boolean;
 }
@@ -57,7 +57,7 @@ function highlightMatchedSpans(text: string, matchedTerms: readonly string[]): R
 
 export const ClauseCard: React.FC<ClauseCardProps> = ({
   result,
-  mossMs,
+  vectorSearchMs,
   totalMs,
   isTopCard = false,
 }) => {
@@ -139,7 +139,7 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
       >
         <div>
           conf {result.stanceConfidence.toFixed(2)}
-          {isTopCard && ` · ${Math.round(totalMs)} ms · Moss ${mossMs.toFixed(1)} ms`}
+          {isTopCard && ` · ${Math.round(totalMs)} ms · search ${vectorSearchMs.toFixed(1)} ms`}
         </div>
 
         <button

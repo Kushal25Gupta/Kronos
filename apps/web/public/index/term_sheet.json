@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "builtAt": "2026-09-15T10:44:11.669Z",
-  "modelFingerprint": "sha256:kronos-minilm-l6-v2-q8-384d-v1",
+  "builtAt": "2026-09-15T14:36:53.080Z",
+  "modelFingerprint": "sha256:afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
   "dimensions": 384,
   "chunkCount": 32,
   "docs": [

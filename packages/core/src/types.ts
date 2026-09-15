@@ -59,6 +59,19 @@ export interface SearchHit {
 export interface RankedResult {
   readonly chunk: Chunk;
   readonly fusedScore: number;
+  /**
+   * Best raw cosine similarity this chunk achieved against any expansion.
+   *
+   * Kept distinct from `fusedScore` because the two answer different questions.
+   * RRF is purely ordinal — it measures how consistently a chunk ranked highly
+   * across expansions, and its absolute magnitude is a function of rank
+   * position and nothing else. Cosine measures how semantically close the clause
+   * actually is. A confidence gate needs the latter: a chunk can be the
+   * unanimous top pick of all four expansions (high RRF) while still being a
+   * poor match in absolute terms (low cosine), which is exactly the situation
+   * where the panel should decline rather than assert.
+   */
+  readonly bestCosine: number;
   readonly perExpansion: Readonly<Record<ExpansionKind, number | null>>;
   readonly rank1Margin: number;
   readonly stance: Stance;
@@ -73,11 +86,11 @@ export interface QueryTiming {
   readonly tAsrDone: number;
   readonly tQueryBuilt: number;
   readonly tEmbedDone: number;
-  readonly tMossDone: number;
+  readonly tSearchDone: number;
   readonly tRanked: number;
   readonly tPaint: number;
   readonly totalFromSpeechEnd: number;
-  readonly mossMs: number;
+  readonly vectorSearchMs: number;
   readonly audioMs: number;
   readonly expansionCount: number;
   readonly candidateCount: number;

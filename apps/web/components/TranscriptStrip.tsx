@@ -7,14 +7,14 @@ interface TranscriptStripProps {
   transcript: string;
   gateState: GateState;
   totalMs: number;
-  mossMs: number;
+  vectorSearchMs: number;
 }
 
 export const TranscriptStrip: React.FC<TranscriptStripProps> = ({
   transcript,
   gateState,
   totalMs,
-  mossMs,
+  vectorSearchMs,
 }) => {
   return (
     <div
@@ -44,7 +44,7 @@ export const TranscriptStrip: React.FC<TranscriptStripProps> = ({
           heard: &ldquo;{transcript || "—"}&rdquo;
         </span>
         <span style={{ color: "#58a6ff", fontWeight: 600 }}>
-          {totalMs > 0 ? `${Math.round(totalMs)} ms` : "—"} · Moss {mossMs.toFixed(1)} ms
+          {totalMs > 0 ? `${Math.round(totalMs)} ms` : "—"} · search {vectorSearchMs.toFixed(1)} ms
         </span>
       </div>
       <div style={{ fontSize: "10px", color: "#6e7681" }}>

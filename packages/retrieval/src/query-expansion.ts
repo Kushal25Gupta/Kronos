@@ -121,34 +121,82 @@ export class AssertionParser {
   }
 }
 
+/**
+ * Expands one spoken assertion into four hypothetical clause forms.
+ *
+ * This is HyDE (Hypothetical Document Embeddings) specialised for contracts. The
+ * insight is that a spoken accusation and the clause that governs it are written
+ * in completely different registers. Nobody says "notwithstanding the foregoing";
+ * they say "your Q3 churn blows the minimums." Embedding the spoken sentence and
+ * searching directly means comparing conversational English against legal prose,
+ * and the nearest neighbour is frequently the wrong clause.
+ *
+ * So instead we write, for each of four legal functions, the clause we would
+ * expect to exist if the assertion were true, and search with THAT. The text is
+ * deliberately fluent legal prose rather than appended keywords: a sentence
+ * transformer places "Notwithstanding the foregoing, X shall be exempt..." very
+ * near a real carve-out, whereas a bag of keywords like "notwithstanding exempt
+ * carve-out unless" lands in a vague region near nothing in particular.
+ *
+ * The exception form carries the highest weight (CONFIG.retrieval.WEIGHTS) because
+ * it is the one that changes the outcome of the conversation. The obligation the
+ * other side is invoking is usually the clause they have already quoted at you;
+ * the carve-out is the one you need and cannot find by scrolling.
+ */
 export class QueryExpander {
   expand(assertion: ParsedAssertion): ExpandedQuery[] {
-    const subjStr = assertion.subject.length > 0 ? assertion.subject.join(" ") : assertion.raw;
-    const obStr =
-      assertion.obligation.length > 0 ? assertion.obligation.join(" ") : "minimum thresholds and covenants";
-    const qualStr = assertion.qualifiers.length > 0 ? `${assertion.qualifiers.join(" ")} ` : "";
+    const subject =
+      assertion.subject.length > 0 ? assertion.subject.join(" ") : assertion.raw;
+
+    // Qualifiers (Q3, 4.0%, $50,000,000) are the hooks that discriminate between
+    // otherwise near-identical clauses, so they are carried into every form.
+    const qualifiers =
+      assertion.qualifiers.length > 0 ? ` ${assertion.qualifiers.join(" ")}` : "";
+
+    const instrument =
+      assertion.instrument.length > 0 ? assertion.instrument[0] : "this Agreement";
 
     return [
       {
         kind: "obligation",
-        text: `${assertion.raw} ${subjStr} shall must covenant obligation threshold`,
+        // The rule being invoked against you.
+        text:
+          `${assertion.raw} ` +
+          `Under ${instrument}, ${subject}${qualifiers} shall not exceed the ` +
+          `applicable minimum thresholds, and the Company shall comply with such ` +
+          `covenants at all times.`,
         weight: CONFIG.retrieval.WEIGHTS.obligation,
       },
       {
         kind: "exception",
-        text: `${assertion.raw} ${subjStr} notwithstanding exempt carve-out provided that excluded unless`,
+        // The carve-out that rebuts it. Highest weight — this is the money card.
+        text:
+          `${assertion.raw} ` +
+          `Notwithstanding the foregoing, ${subject}${qualifiers} shall be exempt ` +
+          `from such thresholds, and this provision shall not apply, provided that ` +
+          `the applicable conditions are satisfied.`,
         weight: CONFIG.retrieval.WEIGHTS.exception,
       },
       {
         kind: "definition",
-        text: `${assertion.raw} ${subjStr} means shall mean definition`,
+        // How the disputed term is actually defined, which often decides the point.
+        text:
+          `${assertion.raw} ` +
+          `For purposes of ${instrument}, "${subject}" means the amount so ` +
+          `calculated and shall have the meaning set forth in this Section.`,
         weight: CONFIG.retrieval.WEIGHTS.definition,
       },
       {
         kind: "remedy",
-        text: `${assertion.raw} ${subjStr} sole remedy cure period breakup fee`,
+        // What actually happens if the accusation is true — usually less than claimed.
+        text:
+          `${assertion.raw} ` +
+          `In the event of any breach with respect to ${subject}${qualifiers}, the ` +
+          `sole and exclusive remedy shall be as set forth herein, subject to the ` +
+          `applicable cure period.`,
         weight: CONFIG.retrieval.WEIGHTS.remedy,
       },
     ];
   }
 }
+

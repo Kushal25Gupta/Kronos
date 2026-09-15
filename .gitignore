@@ -8,3 +8,14 @@ build/
 .DS_Store
 .env*.local
 coverage/
+
+# Vendored ONNX model weights (~64 MB), fetched by `pnpm fetch-models`.
+# Not committed: they are large binaries reproducible from a pinned script, and
+# git is the wrong place for them. The generated fingerprints in
+# packages/core/src/model-fingerprints.ts ARE committed, so a mismatch between
+# the weights someone fetches and the index in the repo is detected at load.
+apps/web/public/models/
+
+# Reference audio used by the ASR benchmark, fetched by `pnpm fetch-audio`.
+samples/audio/
+*.tsbuildinfo

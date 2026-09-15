@@ -13,5 +13,13 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
+    // These tests load real ONNX models (MiniLM ~22 MB, Whisper ~39 MB). Model
+    // initialisation alone is seconds, so the default 5s timeout is far too low.
+    testTimeout: 300_000,
+    hookTimeout: 300_000,
+    // Run in a single fork: parallel workers would each load their own copy of
+    // the models and contend for CPU, making every test slower and flakier.
+    pool: "forks",
+    poolOptions: { forks: { singleFork: true } },
   },
 });
