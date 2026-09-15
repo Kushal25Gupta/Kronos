@@ -1,0 +1,14 @@
+{
+  "name": "@kronos/eval",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "eval": "tsx src/run-all.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kronos/core": "workspace:*",
+    "@kronos/retrieval": "workspace:*",
+    "@kronos/ingest": "workspace:*"
+  }
+}

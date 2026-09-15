@@ -1,0 +1,49 @@
+/**
+ * IndexBuilder — Embeds chunks and emits KRONOSIX binary .moss artifact (LLD.md §3, §5)
+ */
+
+import { Chunk, IndexArtifactMeta } from "@kronos/core";
+import { EmbeddingService, MiniLmEmbedder, packIndexArtifact } from "@kronos/retrieval";
+import { ParsedDocument } from "./parse.js";
+
+export class IndexBuilder {
+  private readonly embedder: EmbeddingService;
+
+  constructor(embedder: EmbeddingService = new MiniLmEmbedder()) {
+    this.embedder = embedder;
+  }
+
+  async buildArtifact(
+    doc: ParsedDocument,
+    chunks: readonly Chunk[]
+  ): Promise<{ binary: Uint8Array; meta: IndexArtifactMeta; vectors: Float32Array }> {
+    const texts = chunks.map((c) => `${c.clauseLabel} ${c.text}`);
+    const embeddings = await this.embedder.embed(texts);
+
+    const dimensions = this.embedder.dimensions;
+    const packedVectors = new Float32Array(chunks.length * dimensions);
+    embeddings.forEach((vec, idx) => {
+      packedVectors.set(vec, idx * dimensions);
+    });
+
+    const meta: IndexArtifactMeta = {
+      version: 1,
+      builtAt: new Date().toISOString(),
+      modelFingerprint: this.embedder.fingerprint(),
+      dimensions,
+      chunkCount: chunks.length,
+      docs: [
+        {
+          id: doc.docId,
+          title: doc.title,
+          pageCount: doc.pageCount,
+          sha256: doc.sha256,
+        },
+      ],
+      chunks,
+    };
+
+    const binary = await packIndexArtifact(meta, packedVectors);
+    return { binary, meta, vectors: packedVectors };
+  }
+}

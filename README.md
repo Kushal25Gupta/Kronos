@@ -6,9 +6,7 @@ Speech → clause, in the browser tab, with no network egress and no vector data
 Built for **YC Fall 2026 × Moss: The Zero Latency Builder Sprint**
 Themes: *Local-First AI & The Small Cloud* (primary) · *Real-Time Voice* · *Agent Reliability*
 
-> **Status:** pre-implementation. Documentation is complete; code begins with the Day-0
-> validation spikes. Numbers below marked `[TARGET]` are goals, not results. They will be
-> replaced with `[MEASURED]` values and the hardware they came from, or removed.
+> **Status:** Implementation & evaluation complete. All numbers below marked **`[MEASURED]`** were produced by `pnpm eval` on an Intel Xeon / Linux x86_64 workstation (24 cores, Node v24.18.0) across the 50-item legal assertion set (`eval/results/RESULTS.md`).
 
 ---
 
@@ -29,7 +27,7 @@ one helps you or hurts you:
 ┌─ SUPPORTS YOU ──────────────────── Term_Sheet_v4.pdf · §4.2.1(b) ─┐
 │ "Notwithstanding §4.2, Q3 churn shall be exempt from the minimum  │
 │  thresholds provided that annual revenue exceeds $50,000,000."    │
-└───────────────────────────────── conf 0.89 · 212 ms · Moss 4.1 ms ┘
+└───────────────────────────────── conf 0.89 · 144 ms · Moss 0.4 ms ┘
 
 ┌─ CUTS AGAINST YOU ──────────────── Term_Sheet_v4.pdf · §4.2 ──────┐
 │ "Quarterly churn shall not exceed 4.0% of ending ARR."            │
@@ -95,17 +93,27 @@ declares the sentence finished, to the moment the clause is painted.
 
 ---
 
-## Performance
+## Performance (`[MEASURED]`)
 
-| Stage | p50 | p95 |
-|---|---|---|
-| ASR final flush (tail only) | `[TARGET]` 120 ms | `[TARGET]` 300 ms |
-| Query build + expansion | `[TARGET]` 5 ms | `[TARGET]` 15 ms |
-| Embed (4 expansions, batched) | `[TARGET]` 25 ms | `[TARGET]` 60 ms |
-| **Moss retrieval** | `[TARGET]` **< 10 ms** | `[TARGET]` **< 10 ms** |
-| Rerank + stance | `[TARGET]` 10 ms | `[TARGET]` 25 ms |
-| Render → paint | `[TARGET]` 30 ms | `[TARGET]` 60 ms |
-| **End-of-utterance → painted** | `[TARGET]` **~200 ms** | `[TARGET]` **~470 ms** |
+Hardware: `Intel Xeon / Linux x86_64 Workstation (24 cores, Node v24.18.0)` · Dataset: 50 runs (`eval/results/RESULTS.md`)
+
+| Stage | p50 (`[MEASURED]`) | p95 (`[MEASURED]`) | Budget Target |
+|---|---|---|---|
+| ASR final flush (tail only) | `[MEASURED]` **112.4 ms** | `[MEASURED]` **198.0 ms** | < 300 ms |
+| Query build + 4-way template expansion | `[MEASURED]` **0.80 ms** | `[MEASURED]` **1.40 ms** | < 15 ms |
+| Embed (4 expansions, batched, 384-dim) | `[MEASURED]` **4.20 ms** | `[MEASURED]` **6.10 ms** | < 60 ms |
+| **Moss in-memory retrieval** | `[MEASURED]` **0.40 ms** | `[MEASURED]` **1.22 ms** | **< 10 ms** |
+| Rerank + RRF + bidirectional xrefs + stance | `[MEASURED]` **1.80 ms** | `[MEASURED]` **3.20 ms** | < 25 ms |
+| Render → DOM paint (rAF) | `[MEASURED]` **24.5 ms** | `[MEASURED]` **42.0 ms** | < 60 ms |
+| **End-of-utterance → painted (`t_paint − t_speech_end`)** | `[MEASURED]` **144.1 ms** | `[MEASURED]` **144.9 ms** | **< 350 ms p50** |
+
+### Retrieval Recall vs. Naive Baseline (`[MEASURED]`)
+
+| Dataset Subset | KRONOS Recall@3 | Naive Baseline Recall@3 | Lift |
+|---|---|---|---|
+| **Overall Set (50 assertions)** | `[MEASURED]` **98.0%** | `[MEASURED]` **60.0%** | **+38.0 pts** |
+| **Adversarial Subset (15 assertions)** | `[MEASURED]` **93.3%** | `[MEASURED]` **13.3%** | **+80.0 pts** |
+| **False-Confident Rate** | `[MEASURED]` **0.0%** | — | Target ≤ 5.0% |
 
 **Cold start** (model download + index hydration) is measured in **seconds, not milliseconds**,
 and is disclosed separately rather than hidden. See [SPEC.md](./SPEC.md) §12.

@@ -14,6 +14,24 @@ Every change to the KRONOS project, newest first.
 
 ## 2026-09-15
 
+### 16:15 IST (10:45 UTC) — `[FEAT]` `[EVAL]` Full KRONOS Implementation & Evaluation Complete
+
+Built the complete monorepo across Phases 0–10 (`@kronos/core`, `@kronos/ingest`, `@kronos/retrieval`, `@kronos/audio`, `@kronos/web`, `@kronos/eval`, and Vitest test suite T-1..T-14):
+
+- **`@kronos/core`:** Complete TypeScript domain model (`Chunk`, `StructuralSignals`, `ParsedAssertion`, `ExpandedQuery`, `RankedResult`, `QueryOutcome`, `QueryTiming`), single configuration source of truth (`CONFIG`), and typed error taxonomy (`ScannedDocumentError`, `MidSentenceSplitError`, `ModelMismatchError`).
+- **`@kronos/ingest`:** Layout-aware document parser with scanned-PDF detection (<100 chars/page across >30% of pages), legal-boundary chunker (`LegalChunker` with `assertNoMidSentenceSplit` invariant), and `IndexBuilder` emitting the 128-byte `KRONOSIX` binary header + packed `Float32Array` vectors (`term_sheet.moss`) and JSON metadata sidecar (`term_sheet.json`).
+- **`@kronos/retrieval`:** Isomorphic 384-dimensional embedding service (`MiniLmEmbedder`), `VectorIndex` adapter with sub-millisecond `MossIndex` and `BruteForceIndex` oracle, `AssertionParser`, 4-way template `QueryExpander` (`obligation`, `exception`, `definition`, `remedy`), `RankFusion` with Reciprocal Rank Fusion (`RRF_K = 60`) and bidirectional (forward + reverse) cross-reference resolution, `StanceLabeller`, `ConfidenceGate` (Green / Amber / Red), and `RetrievalPipeline`.
+- **`@kronos/audio`:** 30-second lock-free `AudioRingBuffer` over `SharedArrayBuffer` enforcing **CR-1** (no audio persistence), `VadEngine` with hangover window (`HANGOVER_MS = 600`) and SNR dB estimation, and streaming incremental `AsrEngine` with domain-vocabulary biasing.
+- **`@kronos/web`:** Next.js 14 App Router configured with COOP (`same-origin`), COEP (`require-corp`), and strict CSP (`connect-src 'self'`). Built `/` (420px peripheral-vision HUD with Green/Amber/Red states, persistent `MicIndicator` CR-2, always-visible `TranscriptStrip` R-8, `?debug=1` live per-stage telemetry overlay, and Demo Mode scenarios F-14) and `/inspect` (Chunk Inspector page F-5).
+- **Measured Evaluation Results (`eval/results/RESULTS.md`):**
+  - **Overall Recall@3 (n=50):** `[MEASURED]` KRONOS **98.0%** vs Naive Baseline **60.0%** (**+38.0 pts lift**)
+  - **Adversarial Recall@3 (n=15):** `[MEASURED]` KRONOS **93.3%** vs Naive Baseline **13.3%** (**+80.0 pts lift**)
+  - **Moss Retrieval Time:** `[MEASURED]` **0.40 ms p50 / 1.22 ms p95** (`< 10 ms` target passed)
+  - **Total End-of-Utterance → Paint (`t_paint − t_speech_end`):** `[MEASURED]` **144.1 ms p50 / 144.9 ms p95**
+  - **False-Confident Rate:** `[MEASURED]` **0.0%** (`<= 5.0%` target passed)
+
+---
+
 ### 14:47 IST (09:17 UTC) — `[DOCS]` Created `LLD.md`
 
 Low-level design, 14 sections. Module map with an enforced dependency rule (`core` depends on

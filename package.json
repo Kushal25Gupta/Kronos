@@ -1,0 +1,23 @@
+{
+  "name": "kronos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first recall copilot for high-stakes contract negotiation",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @kronos/web dev",
+    "ingest": "pnpm --filter @kronos/ingest ingest",
+    "eval": "pnpm --filter @kronos/eval eval",
+    "test": "vitest run",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
